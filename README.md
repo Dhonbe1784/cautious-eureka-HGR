@@ -1,7 +1,8 @@
 # cautious-eureka-HGR
 This file requires
 python, mediapipe, opencv, and pyautogui
-install python 3.10.0 from python.org and go through the releases
+install python 3.10.0 from python.org and go through the releases,
+
 for mediapipe do
 pip install mediapipe==0.10.21
 for opencv do
