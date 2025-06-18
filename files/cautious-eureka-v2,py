@@ -1,0 +1,82 @@
+import cv2
+import mediapipe as mp
+import pyautogui
+import math
+
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+
+# Initialize webcam
+webcam = cv2.VideoCapture(0)
+
+# Pinch detection variables
+pinch_threshold = 30  # Pixel distance for pinch detection
+was_pinched = False   # Tracks previous pinch state
+
+with mp_hands.Hands(
+    static_image_mode=False,
+    max_num_hands=1,
+    min_detection_confidence=0.5
+) as hands:
+    while webcam.isOpened():
+        success, img = webcam.read()
+        if not success:
+            continue
+        
+        # Process hand tracking
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        results = hands.process(img_rgb)
+        img = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+        
+        current_pinched = False
+        if results.multi_hand_landmarks:
+            for hand_landmarks in results.multi_hand_landmarks:
+                # Draw hand landmarks
+                mp_drawing.draw_landmarks(
+                    img, 
+                    hand_landmarks, 
+                    mp_hands.HAND_CONNECTIONS
+                )
+                
+                # Get thumb (4) and index finger (8) landmarks
+                thumb = hand_landmarks.landmark[4]
+                index_finger = hand_landmarks.landmark[8]
+                
+                # Convert to pixel coordinates
+                h, w, _ = img.shape
+                thumb_x, thumb_y = int(thumb.x * w), int(thumb.y * h)
+                index_x, index_y = int(index_finger.x * w), int(index_finger.y * h)
+                
+                # Draw connection between thumb and index finger
+                cv2.line(img, (thumb_x, thumb_y), (index_x, index_y), (0, 255, 0), 2)
+                cv2.circle(img, (thumb_x, thumb_y), 8, (0, 255, 255), -1)
+                cv2.circle(img, (index_x, index_y), 8, (0, 255, 255), -1)
+                
+                # Calculate Euclidean distance
+                distance = math.sqrt((thumb_x - index_x)**2 + (thumb_y - index_y)**2)
+                
+                # Display distance
+                cv2.putText(img, f"Dist: {int(distance)}", (10, 30),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                
+                # Check pinch condition
+                if distance < pinch_threshold:
+                    current_pinched = True
+                    cv2.putText(img, "PINCHING", (10, 70),
+                               cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        
+        # Trigger double click on pinch state change
+        if current_pinched and not was_pinched:
+            pyautogui.doubleClick()
+            print("Double click triggered!")
+        
+        # Update pinch state
+        was_pinched = current_pinched
+        
+        # Display image
+        cv2.imshow('Hand Controlled Mouse', img)
+        if cv2.waitKey(5) & 0xFF == ord("q"):
+            break
+
+webcam.release()
+cv2.destroyAllWindows()
